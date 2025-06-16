@@ -1,0 +1,39 @@
+name: Check VERSION Changed on Merge from Development
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get VERSION in main
+        id: main_version
+        run: |
+          MAIN_VERSION=$(cat VERSION)
+          echo "main_version=$MAIN_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Get VERSION from development
+        id: dev_version
+        run: |
+          git fetch origin development
+          DEV_VERSION=$(git show origin/development:VERSION)
+          echo "dev_version=$DEV_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Compare versions
+        run: |
+          echo "main VERSION: ${{ steps.main_version.outputs.main_version }}"
+          echo "dev VERSION:  ${{ steps.dev_version.outputs.dev_version }}"
+          if [ "${{ steps.main_version.outputs.main_version }}" = "${{ steps.dev_version.outputs.dev_version }}" ]; then
+            echo "❌ The VERSION file is the same in main and development. You must update it before merging."
+            exit 1
+          else
+            echo "✅ The VERSION file has changed. All good."
+          fi
