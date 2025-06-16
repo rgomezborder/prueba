@@ -1,39 +1,41 @@
-name: Check VERSION Changed on Merge from Development
+name: Check VERSION Changed in PR to Main
 
 on:
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
     branches:
       - main
 
 jobs:
-  check-version:
+  check-version-diff:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main
+      - name: Checkout PR branch
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          ref: ${{ github.head_ref }}
 
-      - name: Get VERSION in main
-        id: main_version
+      - name: Get VERSION from PR branch (head)
+        id: pr_version
         run: |
-          MAIN_VERSION=$(cat VERSION)
-          echo "main_version=$MAIN_VERSION" >> $GITHUB_OUTPUT
+          PR_VERSION=$(cat VERSION)
+          echo "pr_version=$PR_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Get VERSION from development
-        id: dev_version
+      - name: Get VERSION from main branch (base)
+        id: base_version
         run: |
-          git fetch origin development
-          DEV_VERSION=$(git show origin/development:VERSION)
-          echo "dev_version=$DEV_VERSION" >> $GITHUB_OUTPUT
+          git fetch origin main
+          BASE_VERSION=$(git show origin/main:VERSION)
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Compare versions
+      - name: Compare VERSION files
         run: |
-          echo "main VERSION: ${{ steps.main_version.outputs.main_version }}"
-          echo "dev VERSION:  ${{ steps.dev_version.outputs.dev_version }}"
-          if [ "${{ steps.main_version.outputs.main_version }}" = "${{ steps.dev_version.outputs.dev_version }}" ]; then
-            echo "❌ The VERSION file is the same in main and development. You must update it before merging."
+          echo "Base (main) VERSION: ${{ steps.base_version.outputs.base_version }}"
+          echo "PR    (head) VERSION: ${{ steps.pr_version.outputs.pr_version }}"
+          if [ "${{ steps.base_version.outputs.base_version }}" = "${{ steps.pr_version.outputs.pr_version }}" ]; then
+            echo "❌ The VERSION file did not change. It must be updated to reflect a new release version."
             exit 1
           else
-            echo "✅ The VERSION file has changed. All good."
+            echo "✅ The VERSION file changed correctly."
           fi
